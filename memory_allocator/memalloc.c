@@ -1,4 +1,6 @@
 #include <unistd.h>
+#include <string.h>
+#include <pthread.h>
 
 union header {
 	struct {
@@ -14,7 +16,7 @@ pthread_mutex_t mutex_lock;
 
 union header *get_free_blk(size_t size)
 {
-	for (union header *ptr = head; ptr; ptr = ptr->next)
+	for (union header *ptr = head; ptr; ptr = ptr->s.next)
 		if (ptr->s.is_free && ptr->s.size >= size)
 			return ptr;
 	return NULL;
@@ -31,7 +33,7 @@ void *s_malloc(size_t size)
 	if (hptr) {
 		hptr->s.is_free = 0;
 	} else {
-		void *blk = sbrk(sizeof(union header_t) + size);
+		void *blk = sbrk(sizeof(union header) + size);
 		if (blk == (void*) -1) {
 			pthread_mutex_unlock(&mutex_lock);
 			return NULL;
@@ -54,7 +56,7 @@ void *s_malloc(size_t size)
 void s_free(void *blk)
 {
 	if (!blk)
-		return NULL;
+		return;
 
 	pthread_mutex_lock(&mutex_lock);
 
@@ -71,7 +73,7 @@ void s_free(void *blk)
 		}
 		sbrk(0 - sizeof(union header*) - hptr->s.size);
 	} else {
-		hptr->is_free = 1;
+		hptr->s.is_free = 1;
 	}
 
 	pthread_mutex_unlock(&mutex_lock);
@@ -79,12 +81,12 @@ void s_free(void *blk)
 
 void *s_calloc(size_t num, size_t size)
 {
-	if (!num || !nsize)
+	if (!num || !size)
 		return NULL;
-	size_t total_size = num * nsize;
-	if (nsize != total_size / num)
+	size_t total_size = num * size;
+	if (size != total_size / num)
 		return NULL;
-	void *blk = malloc(total_size);
+	void *blk = s_malloc(total_size);
 	if (!blk)
 		return NULL;
 	memset(blk, 0, total_size);
