@@ -77,3 +77,17 @@ void s_free(void *blk)
 
 	pthread_mutex_unlock(&mutex_lock);
 }
+
+void *s_calloc(size_t num, size_t size)
+{
+	if (!num || !nsize)
+		return NULL;
+	size_t total_size = num * nsize;
+	if (nsize != total_size / num)
+		return NULL;
+	void *blk = malloc(total_size);
+	if (!blk)
+		return NULL;
+	memset(blk, 0, total_size);
+	return blk;
+}
