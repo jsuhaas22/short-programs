@@ -51,3 +51,29 @@ void *s_malloc(size_t size)
 	pthread_mutex_unlock(&mutex_lock);
 	return (void*)(hptr + 1);
 }
+
+void s_free(void *blk)
+{
+	if (!blk)
+		return NULL;
+
+	pthread_mutex_lock(&mutex_lock);
+
+	union header *hptr = (union header*) blk - 1;
+	if ((char*) blk + hptr->s.size == sbrk(0)) {
+		if (head == tail) {
+			head = tail = NULL;
+		} else {
+			union header *tmp = head;
+			while (tmp->s.next != tail)
+				tmp = tmp->s.next;
+			tmp->s.next = NULL;
+			tail = tmp;
+		}
+		sbrk(0 - sizeof(union header*) - hptr->s.size);
+	} else {
+		hptr->is_free = 1;
+	}
+
+	pthread_mutex_unlock(&mutex_lock);
+}
