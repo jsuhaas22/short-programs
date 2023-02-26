@@ -91,3 +91,20 @@ void *s_calloc(size_t num, size_t size)
 	memset(blk, 0, total_size);
 	return blk;
 }
+
+void *s_realloc(void *blk, size_t size)
+{
+	if (!blk || !size)
+		return NULL;
+
+	union header *hptr = (union header*) blk - 1;
+	if (hptr->s.size >= size)
+		return blk;
+
+	void *ret = s_malloc(size);
+	if (ret) {
+		memcpy(ret, blk, hptr->s.size);
+		s_free(blk);
+	}
+	return ret;
+}
