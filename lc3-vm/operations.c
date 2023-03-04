@@ -17,3 +17,11 @@ void op_add(uint16_t instr)
 	}
 	update_flags(dst_r);
 }
+
+void op_ldi(uint16_t instr)
+{
+	uint16_t dst_r = (instr >> 9) & 0x07;
+	uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+	regs[dst_r] = mem_read(mem_read(regs[R_PC] + pc_offset));
+	update_flag(dst_r);
+}
