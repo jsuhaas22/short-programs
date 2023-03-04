@@ -1,4 +1,5 @@
 #include "global.h"
+#include "operations.h"
 #include <stdio.h>
 
 int main(int argc, char **args)
@@ -28,6 +29,7 @@ int main(int argc, char **args)
 
 		switch (opcode) {
 			case OP_ADD:
+				op_add(instr);
 				break;
 			case OP_AND:
 				break;
