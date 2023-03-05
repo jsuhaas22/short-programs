@@ -24,33 +24,33 @@ enum {
 };
 
 enum {
-	OP_BR = 0,
-	OP_ADD,
-	OP_LD,
-	OP_ST,
-	OP_JSR,
-	OP_AND,
-	OP_LDR,
-	OP_STR,
-	OP_RTI,
-	OP_NOT,
-	OP_LDI,
-	OP_STI,
-	OP_JMP,
-	OP_RES,
-	OP_LEA,
-	OP_TRAP
+	OP_BR = 0, /* branch */
+	OP_ADD, /* add */
+	OP_LD, /* load */
+	OP_ST, /* store */
+	OP_JSR, /* jump register */
+	OP_AND, /* and */
+	OP_LDR, /* load register */
+	OP_STR, /* store register */
+	OP_RTI, /* reserved */
+	OP_NOT, /* bitwise not */
+	OP_LDI, /* load indirect */
+	OP_STI, /* store indirect */
+	OP_JMP, /* jump */
+	OP_RES, /* reserved */
+	OP_LEA, /* load effective address */
+	OP_TRAP /* execute a trap routine */
 };
 
 extern uint16_t regs[R_COUNT];
 
 enum {
-	TRAP_GETC = 0x20,
-	TRAP_OUT = 0x21,
-	TRAP_PUTS = 0x22,
-	TRAP_IN = 0x23,
-	TRAP_PUTSP = 0x24,
-	TRAP_HALT = 0x25,
+	TRAP_GETC = 0x20, /* get a character without echoing */
+	TRAP_OUT = 0x21, /* output a character to console */
+	TRAP_PUTS = 0x22, /* output a word string to a console */
+	TRAP_IN = 0x23, /* get a character while echoing */
+	TRAP_PUTSP = 0x24, /* output a byte string to the console */
+	TRAP_HALT = 0x25, /* stop the program */
 };
 
 #define MEMORY_SIZE (1 << 16)
