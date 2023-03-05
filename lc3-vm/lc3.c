@@ -19,6 +19,9 @@ int main(int argc, char **args)
 		}
 	}
 
+	signal(SIGINT, handle_interrupt_sig);
+	disable_ip_buffering();
+
 	uint16_t regs[R_COUNT];
 
 	regs[R_COND] = FL_ZRO;
@@ -96,4 +99,5 @@ int main(int argc, char **args)
 				break;
 		}
 	}
+	restore_ip_buffering();
 }
