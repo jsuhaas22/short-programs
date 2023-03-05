@@ -76,3 +76,11 @@ void op_ldr(uint16_t instr)
 	regs[dst_r] = mem_read(regs[base_r] + pc_offset);
 	update_flag(dst_r);
 }
+
+void op_not(uint16_t instr)
+{
+	uint16_t dst_r = (instr >> 9) & 0x07;
+	uint16_t src_r = (instr >> 6) & 0x07;
+	regs[dst_r] = ~regs[src_r];
+	update_flag(dst_r);
+}
