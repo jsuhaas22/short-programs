@@ -3,6 +3,7 @@
 #include "global.h"
 
 int regs[R_COUNT];
+uint16_t memory[MEMORY_SIZE];
 
 void op_add(uint16_t instr)
 {
@@ -105,4 +106,14 @@ void op_sti(uint16_t instr)
 	uint16_t src_r = (instr >> 9) & 0x07;
 	uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
 	mem_write(mem_read(regs[R_PC] + pc_offset), regs[src_r]);
+}
+
+void trap_puts(uint16_t instr)
+{
+	uint16_t *c = memory + regs[R_R0];
+	while (*c) {
+		putc((char*) c, stdout);
+		c++;
+	}
+	fflush(stdout);
 }

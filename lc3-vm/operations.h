@@ -14,4 +14,5 @@ void op_st(uint16_t instr);
 void op_str(uint16_t instr);
 void op_sti(uint16_t instr);
 
+void trap_puts(uint16_t instr);
 #endif // OPERATIONS
