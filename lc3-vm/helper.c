@@ -1,5 +1,16 @@
 #include "helper.h"
 
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/termios.h>
+#include <sys/mman.h>
+
 uint16_t sign_extend(uint16_t n, int bit_cnt)
 {
 	return (n >> (bit_cnt - 1)) & 1 ? n | (0xFFFF << bit_cnt) : n;
@@ -57,4 +68,37 @@ int mem_read(uint16_t address)
 		}
 	}
 	return memory[address];
+}
+
+struct termios orig_tio;
+void disable_ip_buffering()
+{
+	tcgetattr(STDIN_FILENO, &orig_tio);
+	struct termios new_tio = orig_tio;
+	new_tio.c_lflag = ~ICANON & ~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+}
+
+void restore_ip_buffering()
+{
+	tcsetattr(STDIN_FILENO, TCSANOW, &orig_tio);
+}
+
+uint16_t check_key()
+{
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	FD_SET(STDIN_FILENO, &readfds);
+
+	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+	return select(1, &readfds, NULL, NULL, &timeout) != 0;
+}
+
+void handle_interrupt_sig(int signal)
+{
+	restore_input_buffering();
+	printf("\n");
+	exit(-2);
 }
