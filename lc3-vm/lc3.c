@@ -1,7 +1,11 @@
 #include "global.h"
 #include "operations.h"
+#include "helper.h"
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <signal.h>
 
 int main(int argc, char **args)
 {
@@ -11,7 +15,7 @@ int main(int argc, char **args)
 	}
 
 	for (int i = 0; i < argc; ++i) {
-		if (!read_file(args[i])) {
+		if (!read_img(args[i])) {
 			printf("Could not read file %s\n. Please ensure it exists.\n", args[i]);
 			exit(1);
 		} else {

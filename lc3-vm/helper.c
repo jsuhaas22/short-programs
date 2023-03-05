@@ -1,4 +1,5 @@
 #include "helper.h"
+#include "global.h"
 
 #include <stdio.h>
 #include <signal.h>
@@ -16,9 +17,9 @@ uint16_t sign_extend(uint16_t n, int bit_cnt)
 	return (n >> (bit_cnt - 1)) & 1 ? n | (0xFFFF << bit_cnt) : n;
 }
 
-void update_flag(uint16_t r)
+void update_flags(uint16_t r)
 {
-	regs[R_COND] = regs[r] == 0 ? FL_ZERO : regs[r] < 0 ? FL_NEG : FL_POS;
+	regs[R_COND] = regs[r] == 0 ? FL_ZRO : regs[r] < 0 ? FL_NEG : FL_POS;
 }
 
 uint16_t swap16(int x)
@@ -42,7 +43,7 @@ void read_img_file(FILE *file)
 	origin = fread(&origin, sizeof(origin), 1, file);
 	origin = swap16(origin);
 
-	uint16_t max_read = MEMORY_MAX - origin;
+	uint16_t max_read = MEMORY_SIZE - origin;
 	uint16_t *p = memory + origin;
 	size_t read = fread(p, sizeof(uint16_t), max_read, file);
 
@@ -98,7 +99,7 @@ uint16_t check_key()
 
 void handle_interrupt_sig(int signal)
 {
-	restore_input_buffering();
+	restore_ip_buffering();
 	printf("\n");
 	exit(-2);
 }

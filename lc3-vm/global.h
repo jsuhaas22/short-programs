@@ -1,6 +1,8 @@
 #ifndef GLOBAL
 #define GLOBAL
 
+#include <stdint.h>
+
 enum {
 	R_R0 = 0,
 	R_R1,
@@ -16,9 +18,9 @@ enum {
 };
 
 enum {
-	FL_POS = 1 << 0;
-	FL_ZRO = 1 << 1;
-	FL_NEG = 1 << 2;
+	FL_POS = 1 << 0,
+	FL_ZRO = 1 << 1,
+	FL_NEG = 1 << 2,
 };
 
 enum {
@@ -46,6 +48,7 @@ enum {
 	TRAP_GETC = 0x20,
 	TRAP_OUT,
 	TRAP_IN,
+	TRAP_PUTS,
 	TRAP_PUTSP,
 	TRAP_HALT,
 };

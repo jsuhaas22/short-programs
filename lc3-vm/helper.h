@@ -1,6 +1,9 @@
 #ifndef HELPER
 #define HELPER
 
+#include <stdio.h>
+#include <stdint.h>
+
 uint16_t sign_extend(uint16_t n, int bit_cnt);
 void update_flags(uint16_t r);
 uint16_t swap16(int x);
