@@ -117,3 +117,45 @@ void trap_puts(uint16_t instr)
 	}
 	fflush(stdout);
 }
+
+void trap_getc()
+{
+	regs[R_R0] = (uint16_t)getchar();
+	update_flags(R_R0);
+}
+
+void trap_out()
+{
+	putc((char)regs[R_R0], stdout);
+	fflush(stdout);
+}
+
+void trap_in()
+{
+	printf("Enter a character: ");
+	char c = getchar();
+	putc(c, stdout);
+	fflush(stdout);
+	regs[R_R0] = (uint16_t)c;
+	update_flags(R_R0);
+}
+
+void trap_putsp()
+{
+	uint16_t ptr = memory + regs[R_R0];
+	while (*ptr) {
+		char c = (*c) & 0xFF;
+		putc(c, stdout);
+		c = (*ptr) >> 8;
+		if (c)
+			putc(c, stdout);
+		++c;
+	}
+	fflush(stdout);
+}
+
+void trap_halt()
+{
+	puts("HALT");
+	fflush(stdout);
+}
