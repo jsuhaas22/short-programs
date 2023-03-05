@@ -8,4 +8,7 @@ uint16_t swap16(int x);
 int read_img(const char *path);
 void read_img_file(FILE *file);
 
+void mem_write(uint16_t address, uint16_t val);
+int mem_read(uint16_t address);
+
 #endif // HELPER
