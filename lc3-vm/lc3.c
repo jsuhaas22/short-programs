@@ -34,7 +34,7 @@ int main(int argc, char **args)
 	int running = 1;
 	while (running) {
 		uint16_t instr = mem_read(regs[R_PC]++);
-		uint16_t opcode = instr >> 12;
+		uint16_t opcode = (instr >> 12);
 
 		switch (opcode) {
 			case OP_ADD:
@@ -73,6 +73,9 @@ int main(int argc, char **args)
 			case OP_STI:
 				op_sti(instr);
 				break;
+			case OP_LEA:
+				op_lea(instr);
+				break;
 			case OP_TRAP:
 				switch(instr & 0xFF) {
 					case TRAP_GETC:
@@ -95,10 +98,11 @@ int main(int argc, char **args)
 						running = 0;
 						break;
 				}
+				break;
 			case OP_RES:
 			case OP_RTI:
+				break;
 			default:
-				printf("Bad instruction\n");
 				abort();
 				break;
 		}
