@@ -108,11 +108,19 @@ void op_sti(uint16_t instr)
 	mem_write(mem_read(regs[R_PC] + pc_offset), regs[src_r]);
 }
 
+void op_lea(uint16_t instr)
+{
+	uint16_t dst_r = (instr >> 9) & 0x07;
+	uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+	regs[dst_r] = regs[R_PC] + pc_offset;
+	update_flags(dst_r);
+}
+
 void trap_puts()
 {
 	uint16_t *c = memory + regs[R_R0];
 	while (*c) {
-		putc((char) c, stdout);
+		putc((char) *c, stdout);
 		c++;
 	}
 	fflush(stdout);
