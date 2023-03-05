@@ -42,4 +42,15 @@ enum {
 
 extern uint16_t regs[R_COUNT];
 
+enum {
+	TRAP_GETC = 0x20,
+	TRAP_OUT,
+	TRAP_IN,
+	TRAP_PUTSP,
+	TRAP_HALT,
+};
+
+#define MEMORY_SIZE (1 << 16)
+extern uint16_t memory[MEMORY_SIZE];
+
 #endif // GLOBAL
