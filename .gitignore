@@ -1,0 +1,6 @@
+*.o
+*.out
+*.swp
+
+a.out
+vm
