@@ -9,3 +9,34 @@ void update_flag(uint16_t r)
 {
 	regs[R_COND] = regs[r] == 0 ? FL_ZERO : regs[r] < 0 ? FL_NEG : FL_POS;
 }
+
+uint16_t swap16(int x)
+{
+	return (x >> 8) | (x << 8);
+}
+
+int read_img(const char *path)
+{
+	FILE *file = fopen(path, "r");
+	if (!file)
+		return 0;
+	read_img_file(file);
+	fclose(file);
+	return 1;
+}
+
+void read_img_file(FILE *file)
+{
+	uint16_t origin;
+	origin = fread(&origin, sizeof(origin), 1, file);
+	origin = swap16(origin);
+
+	uint16_t max_read = MEMORY_MAX - origin;
+	uint16_t *p = memory + origin;
+	size_t read = fread(p, sizeof(uint16_t), max_read, file);
+
+	while (read--) {
+		*p = swap16(*p);
+		p++;
+	}
+}
