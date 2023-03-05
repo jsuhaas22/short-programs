@@ -84,3 +84,25 @@ void op_not(uint16_t instr)
 	regs[dst_r] = ~regs[src_r];
 	update_flag(dst_r);
 }
+
+void op_st(uint16_t instr)
+{
+	uint16_t src_r = (instr >> 9) & 0x07;
+	uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+	mem_write(regs[R_PC] + pc_offset, regs[src_r]);
+}
+
+void op_str(uint16_t instr)
+{
+	uint16_t src_r = (instr >> 9) & 0x07;
+	uint16_t base_r = (instr >> 6) & 0x07;
+	uint16_t offset = sign_extend(instr & 0x3F, 6);
+	mem_write(regs[base_r] + offset, regs[src_r]);
+}
+
+void op_sti(uint16_t instr)
+{
+	uint16_t src_r = (instr >> 9) & 0x07;
+	uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+	mem_write(mem_read(regs[R_PC] + pc_offset), regs[src_r]);
+}
