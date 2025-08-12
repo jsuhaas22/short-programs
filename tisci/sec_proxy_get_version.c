@@ -64,6 +64,24 @@ struct tisci_msg_version_resp {
 	uint8_t abi_minor;
 } __attribute__ ((__packed__));
 
+struct tisci_fwl_get_req {
+	struct tisci_msg_header hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint32_t n_permission_regs;
+} __attribute__ ((__packed__));
+
+struct tisci_fwl {
+	struct tisci_msg_header hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint32_t n_permission_regs;
+	uint32_t control;
+	uint32_t permissions[3U];
+	uint64_t start_address;
+	uint64_t end_address;
+} __attribute__ ((__packed__));
+
 struct tisci_sec_proxy_thread {
 	uint32_t id;
 	uintptr_t data;
@@ -156,7 +174,7 @@ uint32_t sp_readl(uintptr_t addr)
 void tisci_setup_header(struct tisci_msg_header *hdr, uint16_t type, uint32_t flags)
 {
 	hdr->type = type;
-	hdr->flags = ((1 << 1) | flags);
+	hdr->flags = flags;
 	hdr->host = 13;
 	hdr->seq = seq++;
 }
@@ -172,10 +190,11 @@ void tisci_send_msg(uint8_t *buf, int buflen)
 		fprintf(stderr, "%s: Thread %d verification failed. ret = %d\n",
 			__func__, spt->id, ret);
 		return;
-	} else {
-		fprintf(stderr, "%s: Thread %d verification successful, ret = %d\n",
-			__func__, spt->id, ret);
 	}
+
+	fprintf(stderr, "%s: Thread %d verification successful, ret = %d\n",
+		__func__, spt->id, ret);
+
 
 	if (buflen > SEC_PROXY_MAX_MSG_SIZE) {
 		fprintf(stderr, "%s: Thread %u message length %zu > max msg size %d\n",
@@ -184,7 +203,9 @@ void tisci_send_msg(uint8_t *buf, int buflen)
 	}
 
 
-	for (int num_words = buflen / sizeof(uint32_t); num_words; --num_words, data_reg += sizeof(uint32_t), word_data++)
+	for (int num_words = buflen / sizeof(uint32_t);
+	     num_words;
+	     --num_words, data_reg += sizeof(uint32_t), word_data++)
 		sp_writel(data_reg, *word_data);
 
 	int trail_bytes = buflen % sizeof(uint32_t);
@@ -218,7 +239,8 @@ static int k3_sec_proxy_verify_thread(uint32_t dir)
 			       __func__, spt->id);
 		else
 			fprintf(stderr, "%s: Trying to send data on rx Thread %d\n",
-			       __func__, spt->id);
+				__func__, spt->id);
+
 		return -1;
 	}
 
@@ -240,15 +262,34 @@ int tisci_recv_msg(uint8_t *buf, int buflen)
 		if ((ret && ret != -2) || !retry) {
 			fprintf(stderr, "%s: Thread %d verification failed. ret = %d\n", __func__, THREAD_RX_ID, ret);
 			return ret;
-		} else {
-			fprintf(stderr, "%s: Thread %d verification successful, ret = %d\n",
-				__func__, spt->id, ret);
 		}
 	}
+
+	fprintf(stderr, "%s: Thread %d verification successful, ret = %d\n",
+		__func__, spt->id, ret);
+
 
 	for (num_words = SEC_PROXY_MAX_MSG_SIZE / sizeof(uint32_t); num_words; num_words --, data_reg += sizeof(uint32_t), word_data++)
 		*word_data = sp_readl(data_reg);
 	return 0;
+}
+
+void tisci_setup_fwl_get_req(struct tisci_fwl_get_req *req, uint16_t fwl_id, uint16_t region, uint32_t n_permission_regs)
+{
+	req->fwl_id = fwl_id;
+	req->region = region;
+	req->n_permission_regs = n_permission_regs;
+}
+
+void tisci_setup_fwl_set_req(struct tisci_fwl *req, uint16_t fwl_id, uint16_t region, uint32_t n_permission_regs, uint32_t control, uint32_t permissions[], uint64_t start_address, uint64_t end_address)
+{
+	tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)req, fwl_id, region, n_permission_regs);
+	req->control = control;
+	req->permissions[0] = permissions[0];
+	req->permissions[1] = permissions[1];
+	req->permissions[2] = permissions[2];
+	req->start_address = start_address;
+	req->end_address = end_address;
 }
 
 int main()
@@ -267,7 +308,7 @@ int main()
 
 	memset(buf, 0, sizeof(buf));
 
-	tisci_setup_header((struct tisci_msg_header *) buf, 0x0002, 0);
+	tisci_setup_header((struct tisci_msg_header *) buf, 0x0002, (1 << 1));
 	tisci_send_msg(buf, sizeof(struct tisci_msg_header));
 
 	memset(buf, 0, sizeof(buf));
@@ -276,7 +317,51 @@ int main()
 	struct tisci_msg_version_resp *version = (struct tisci_msg_version_resp*)buf;
 	printf("Version: %d.%d.%d\n", version->version, version->abi_major, version->abi_minor);
 
-	printf("Done\n");
+	printf("\n========== Current permission configurations ==========\n");
+	memset(buf, 0, sizeof(buf));
+	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
+	tisci_setup_fwl_get_req((struct tisci_fwl_get_req *)buf, 66, 0, 3);
+	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
+	memset(buf, 0, sizeof(buf));
+	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
+	struct tisci_fwl *fwl_get_resp = (struct tisci_fwl *)buf;
+	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %d %d %d, start_address: %x, end_address: %x\n",
+	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
+	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
+	int control = fwl_get_resp->control;
+	uint64_t start_address = fwl_get_resp->start_address;
+	uint64_t end_address = fwl_get_resp->end_address;
+
+	uint32_t perms[3];
+	for (int i = 0 ; i < 3; ++i) {
+		perms[i] = (((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
+		printf("perm %d: %d\n", i, perms[i]);
+	}
+
+	printf("\n========== Setting permission configurations ==========\n");
+	memset(buf, 0, sizeof(buf));
+	tisci_setup_header((struct tisci_msg_header *)buf, 0x9000, (1 << 1));
+	tisci_setup_fwl_set_req((struct tisci_fwl *)buf, 66, 0, 3, control, perms, start_address, end_address);
+	tisci_send_msg(buf, sizeof(struct tisci_fwl));
+	memset(buf, 0, sizeof(buf));
+	tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
+	struct tisci_msg_header *hdr_ret = (struct tisci_msg_header*)buf;
+	printf("Acknowledgement received thus: type: %x, host: %d, seq: %d, flags: %d\n",
+	hdr_ret->type, hdr_ret->host, hdr_ret->seq, hdr_ret->flags);
+
+	printf("\n========== New permission configurations ==========\n");
+	memset(buf, 0, sizeof(buf));
+	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
+	tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)buf, 66, 0, 3);
+	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
+	memset(buf, 0, sizeof(buf));
+	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
+	fwl_get_resp = (struct tisci_fwl *)buf;
+	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %d %d %d, start_address: %x, end_address: %x\n",
+	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
+	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
+
+	printf("\nDone\n");
 
 	return 0;
 }
