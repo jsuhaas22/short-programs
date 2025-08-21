@@ -313,8 +313,13 @@ void tisci_setup_fwl_set_req(struct tisci_fwl *req, uint16_t fwl_id, uint16_t re
 	req->end_address = end_address;
 }
 
-int main()
+int main(int argc, char **argv)
 {
+	if (argc <= 1) {
+		printf("Incorrect usage: specify command and its arguments.\n");
+		exit(1);
+	}
+	
 	uint8_t buf[SEC_PROXY_MAX_MSG_SIZE];
 	int ret = 0;
 
@@ -338,51 +343,103 @@ int main()
 	struct tisci_msg_version_resp *version = (struct tisci_msg_version_resp*)buf;
 	printf("Version: %d.%d.%d\n", version->version, version->abi_major, version->abi_minor);
 
-	printf("\n========== Current permission configurations ==========\n");
-	memset(buf, 0, sizeof(buf));
-	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
-	tisci_setup_fwl_get_req((struct tisci_fwl_get_req *)buf, FWL_ID, FWL_REGION, 3);
-	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
-	memset(buf, 0, sizeof(buf));
-	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
-	struct tisci_fwl *fwl_get_resp = (struct tisci_fwl *)buf;
-	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
-	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
-	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
-	int control = ((1 << 9) | 0xA); //fwl_get_resp->control;
-	uint64_t start_address = fwl_get_resp->start_address;
-	uint64_t end_address = fwl_get_resp->end_address;
+	uint16_t region, fwl_id;
+	uint32_t n_perms, control, perm;
+	uint64_t start_address, end_address;
+	struct tisci_fwl *fwl_get_resp;
 
-	uint32_t perms[3];
-	//	for (int i = 0 ; i < 3; ++i) {
-	//	perms[i] = 0xF0F0U & (0x1111U | 0x2222U | 0x3333U | 0x8888U); //(((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
-	// }
-	perms[0] = ((0x1 << 16) | FWL_PERM_RW);
-	perms[1] = (100 << 16) | (FWL_PERM_RO);
-       	perms[2] = ((212 << 16) | 0);
-	
-	printf("\n========== Setting permission configurations ==========\n");
-	memset(buf, 0, sizeof(buf));
-	tisci_setup_header((struct tisci_msg_header *)buf, 0x9000, (1 << 1));
-	tisci_setup_fwl_set_req((struct tisci_fwl *)buf, FWL_ID, FWL_REGION, 3, control, perms, start_address, end_address);
-	tisci_send_msg(buf, sizeof(struct tisci_fwl));
-	memset(buf, 0, sizeof(buf));
-	tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
-	struct tisci_msg_header *hdr_ret = (struct tisci_msg_header*)buf;
-	printf("Acknowledgement received thus: type: %x, host: %d, seq: %d, flags: %d\n",
-	hdr_ret->type, hdr_ret->host, hdr_ret->seq, hdr_ret->flags);
+	if (!strcmp(argv[1], "get")) {
+		if (argc < 5) {
+			printf("Insufficient arguments, exiting\n");
+			exit(1);
+		}
 
-	printf("\n========== New permission configurations ==========\n");
-	memset(buf, 0, sizeof(buf));
-	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
-	tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)buf, FWL_ID, FWL_REGION, 3);
-	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
-	memset(buf, 0, sizeof(buf));
-	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
-	fwl_get_resp = (struct tisci_fwl *)buf;
-	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
-	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
-	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
+		fwl_id = atoi(argv[2]);
+		region = atoi(argv[3]);
+		n_perms = atoi(argv[4]);
+
+		printf("\n========== Current permission configurations ==========\n");
+		memset(buf, 0, sizeof(buf));
+		tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
+		tisci_setup_fwl_get_req((struct tisci_fwl_get_req *)buf, fwl_id, region, n_perms);
+		tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
+		memset(buf, 0, sizeof(buf));
+		tisci_recv_msg(buf, sizeof(struct tisci_fwl));
+		fwl_get_resp = (struct tisci_fwl *)buf;
+		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
+		       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
+		       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
+
+	} else if (!strcmp(argv[1], "set")) {
+
+		if (argc < 9) {
+			printf("Insufficient arguments, exiting...\n");
+			exit(1);
+		}
+
+		fwl_id = atoi(argv[2]);
+		region = atoi(argv[3]);
+		char *end;
+		n_perms = atoi(argv[4]);
+		control = ((1 << 9) | strtoul(argv[5], &end, 16));
+		perm = strtoul(argv[6], &end, 16);
+		start_address = strtoul(argv[7], &end, 16);
+		end_address = strtoul(argv[8], &end, 16);
+
+
+		
+		uint32_t perms[3];
+		//		for (int i = 0 ; i < 3; ++i) {
+		//	perms[i] = perm;//0xF0F0U & (0x1111U | 0x2222U | 0x3333U | 0x8888U); //(((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
+		// }
+		perms[0] = ((0x1 << 16) | perm);
+		perms[1] = (100 << 16) | perm;
+		perms[2] = ((212 << 16) | perm);
+
+		printf("%b %b %x\n", perms[0], control, control);
+
+		printf("\n========== Setting permission configurations ==========\n");
+		memset(buf, 0, sizeof(buf));
+		tisci_setup_header((struct tisci_msg_header *)buf, 0x9000, (1 << 1));
+		tisci_setup_fwl_set_req((struct tisci_fwl *)buf, fwl_id, region, n_perms, control, perms, start_address, end_address);
+		tisci_send_msg(buf, sizeof(struct tisci_fwl));
+		memset(buf, 0, sizeof(buf));
+		tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
+		struct tisci_msg_header *hdr_ret = (struct tisci_msg_header*)buf;
+		printf("Acknowledgement received thus: type: %x, host: %d, seq: %d, flags: %d\n",
+		       hdr_ret->type, hdr_ret->host, hdr_ret->seq, hdr_ret->flags);
+
+		printf("\n========== New permission configurations ==========\n");
+		memset(buf, 0, sizeof(buf));
+		tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
+		tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)buf, fwl_id, region, n_perms);
+		tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
+		memset(buf, 0, sizeof(buf));
+		tisci_recv_msg(buf, sizeof(struct tisci_fwl));
+		fwl_get_resp = (struct tisci_fwl *)buf;
+		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
+		       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
+		       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
+	} else if (!strcmp(argv[1], "test")) {
+
+		if (argc < 3) {
+			printf("insufficient arguments, exiting...\n");
+			exit(1);
+		}
+
+		char *end;
+		uint32_t addr = strtoul(argv[2], &end, 16);
+		uint32_t v = sp_readl(addr);
+		printf("%d\n", v);
+		sp_writel(addr, atoi(argv[3]));
+		v = sp_readl(addr);
+		printf("%d\n", v);
+	} else {
+		printf("Incorrect command\n");
+		exit(1);
+	}
+
+		
 
 	printf("\nDone\n");
 
