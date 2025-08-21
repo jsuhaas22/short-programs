@@ -103,6 +103,22 @@ struct tisci_fwl {
 	uint64_t end_address;
 } __attribute__ ((__packed__));
 
+struct tisci_fwl_owner_req {
+	struct tisci_msg_header hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint8_t owner_index;
+} __attribute__ ((__packed__));
+
+struct tisci_fwl_owner_resp {
+	struct tisci_msg_header hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint8_t owner_index;
+	uint8_t owner_privid;
+	uint16_t owner_permission_bits;
+} __attribute__ ((__packed__));
+
 struct tisci_sec_proxy_thread {
 	uint32_t id;
 	uintptr_t data;
@@ -311,6 +327,16 @@ void tisci_setup_fwl_set_req(struct tisci_fwl *req, uint16_t fwl_id, uint16_t re
 	req->permissions[2] = permissions[2];
 	req->start_address = start_address;
 	req->end_address = end_address;
+
+	printf("FROM INSIDE _SET_: fwl_id: %d, region: %d, n_perms: %d, control: %x, permissions: %x %x %x, start: %x, end: %x\n",
+	       req->fwl_id, req->region, req->n_permission_regs, req->control, req->permissions[0], req->permissions[1], req->permissions[2], req->start_address, req->end_address);
+}
+
+void tisci_setup_owner_req(struct tisci_fwl_owner_req *req, uint16_t fwl_id, uint16_t region, uint8_t owner_index)
+{
+	req->fwl_id = fwl_id;
+	req->region = region;
+	req->owner_index = owner_index;
 }
 
 int main(int argc, char **argv)
@@ -341,7 +367,7 @@ int main(int argc, char **argv)
 	ret = tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
 
 	struct tisci_msg_version_resp *version = (struct tisci_msg_version_resp*)buf;
-	printf("Version: %d.%d.%d\n", version->version, version->abi_major, version->abi_minor);
+	printf("Flag: %d, Version: %d.%d.%d\n", version->hdr.flags, version->version, version->abi_major, version->abi_minor);
 
 	uint16_t region, fwl_id;
 	uint32_t n_perms, control, perm;
@@ -366,7 +392,7 @@ int main(int argc, char **argv)
 		memset(buf, 0, sizeof(buf));
 		tisci_recv_msg(buf, sizeof(struct tisci_fwl));
 		fwl_get_resp = (struct tisci_fwl *)buf;
-		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
+		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %x %x %x, start_address: %x, end_address: %x\n",
 		       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
 		       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
 
@@ -381,12 +407,11 @@ int main(int argc, char **argv)
 		region = atoi(argv[3]);
 		char *end;
 		n_perms = atoi(argv[4]);
-		control = ((1 << 9) | strtoul(argv[5], &end, 16));
+		//control = ((1 << 9) | strtoul(argv[5], &end, 16));
+		control = strtoul(argv[5], &end, 16);
 		perm = strtoul(argv[6], &end, 16);
 		start_address = strtoul(argv[7], &end, 16);
 		end_address = strtoul(argv[8], &end, 16);
-
-
 		
 		uint32_t perms[3];
 		//		for (int i = 0 ; i < 3; ++i) {
@@ -395,8 +420,6 @@ int main(int argc, char **argv)
 		perms[0] = ((0x1 << 16) | perm);
 		perms[1] = (100 << 16) | perm;
 		perms[2] = ((212 << 16) | perm);
-
-		printf("%b %b %x\n", perms[0], control, control);
 
 		printf("\n========== Setting permission configurations ==========\n");
 		memset(buf, 0, sizeof(buf));
@@ -417,7 +440,7 @@ int main(int argc, char **argv)
 		memset(buf, 0, sizeof(buf));
 		tisci_recv_msg(buf, sizeof(struct tisci_fwl));
 		fwl_get_resp = (struct tisci_fwl *)buf;
-		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
+		printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %x %x %x, start_address: %x, end_address: %x\n",
 		       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
 		       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
 	} else if (!strcmp(argv[1], "test")) {
@@ -434,6 +457,27 @@ int main(int argc, char **argv)
 		sp_writel(addr, atoi(argv[3]));
 		v = sp_readl(addr);
 		printf("%d\n", v);
+
+	} else if (!strcmp(argv[1], "owner")) {
+		if (argc < 5) {
+			printf("Insufficent arguments... exiting. \n");
+			exit(1);
+		}
+
+		fwl_id = atoi(argv[2]);
+		region = atoi(argv[3]);
+		uint8_t owner_index = atoi(argv[4]);
+
+		printf("\n=========== Setting new owner =============\n");
+		memset(buf, 0, sizeof(buf));
+		tisci_setup_header((struct tisci_msg_header*)buf, 0x9002U, (1 << 1));
+		tisci_setup_owner_req((struct tisci_fwl_owner_req *)buf, fwl_id, region, owner_index);
+		tisci_send_msg(buf, sizeof(struct tisci_fwl_owner_req));
+		memset(buf, 0, sizeof(buf));
+		tisci_recv_msg(buf, sizeof(struct tisci_fwl_owner_resp));
+		struct tisci_fwl_owner_resp *owner_resp = (struct tisci_fwl_owner_resp *)buf;
+		printf("Flag: %d, FWL ID: %d, Region: %d, Owner_index: %d\nOwner_privid: %d, Owner_permission_bits: %b\n", owner_resp->hdr.flags, owner_resp->fwl_id, owner_resp->region,
+		       owner_resp->owner_index, owner_resp->owner_privid, owner_resp->owner_permission_bits);
 	} else {
 		printf("Incorrect command\n");
 		exit(1);
