@@ -43,6 +43,27 @@ void *map_base, *virt_addr;
 #define NON_ROOT_USER (-13)
 #define MEMORY "/dev/mem"
 
+/* Permission Masks */
+#define FWL_PERM_SEC_MASK (0x00FFU)
+#define FWL_PERM_NSEC_MASK (0xFF00U)
+#define FWL_PERM_PRIV_MASK (0x0F0FU)
+#define FWL_PERM_USER_MASK (0xF0F0U)
+
+#define FWL_PERM_WRITE_MASK (0x1111U)
+#define FWL_PERM_READ_MASK (0x2222U)
+#define FWL_PERM_CACHE_MASK (0x4444U)
+#define FWL_PERM_DEBUG_MASK (0x8888U)
+
+#define FWL_PERM_RW_ALL (FWL_PERM_WRITE_MASK | FWL_PERM_READ_MASK | FWL_PERM_CACHE_MASK | FWL_PERM_DEBUG_MASK)
+#define FWL_PERM_RO_ALL (FWL_PERM_READ_MASK | FWL_PERM_CACHE_MASK | FWL_PERM_DEBUG_MASK)
+#define FWL_PERM_WO_ALL (FWL_PERM_WRITE_MASK | FWL_PERM_CACHE_MASK | FWL_PERM_DEBUG_MASK)
+
+#define FWL_PERM_RO 0b0110011001100110
+#define FWL_PERM_RW 0b1111111111111111
+
+#define FWL_ID 66
+#define FWL_REGION 0
+
 static int k3_sec_proxy_verify_thread(uint32_t dir);
 
 /*
@@ -320,28 +341,30 @@ int main()
 	printf("\n========== Current permission configurations ==========\n");
 	memset(buf, 0, sizeof(buf));
 	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
-	tisci_setup_fwl_get_req((struct tisci_fwl_get_req *)buf, 66, 0, 3);
+	tisci_setup_fwl_get_req((struct tisci_fwl_get_req *)buf, FWL_ID, FWL_REGION, 3);
 	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
 	memset(buf, 0, sizeof(buf));
 	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
 	struct tisci_fwl *fwl_get_resp = (struct tisci_fwl *)buf;
-	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %d %d %d, start_address: %x, end_address: %x\n",
+	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
 	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
 	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
-	int control = fwl_get_resp->control;
+	int control = ((1 << 9) | 0xA); //fwl_get_resp->control;
 	uint64_t start_address = fwl_get_resp->start_address;
 	uint64_t end_address = fwl_get_resp->end_address;
 
 	uint32_t perms[3];
-	for (int i = 0 ; i < 3; ++i) {
-		perms[i] = (((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
-		printf("perm %d: %d\n", i, perms[i]);
-	}
-
+	//	for (int i = 0 ; i < 3; ++i) {
+	//	perms[i] = 0xF0F0U & (0x1111U | 0x2222U | 0x3333U | 0x8888U); //(((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
+	// }
+	perms[0] = ((0x1 << 16) | FWL_PERM_RW);
+	perms[1] = (100 << 16) | (FWL_PERM_RO);
+       	perms[2] = ((212 << 16) | 0);
+	
 	printf("\n========== Setting permission configurations ==========\n");
 	memset(buf, 0, sizeof(buf));
 	tisci_setup_header((struct tisci_msg_header *)buf, 0x9000, (1 << 1));
-	tisci_setup_fwl_set_req((struct tisci_fwl *)buf, 66, 0, 3, control, perms, start_address, end_address);
+	tisci_setup_fwl_set_req((struct tisci_fwl *)buf, FWL_ID, FWL_REGION, 3, control, perms, start_address, end_address);
 	tisci_send_msg(buf, sizeof(struct tisci_fwl));
 	memset(buf, 0, sizeof(buf));
 	tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
@@ -352,12 +375,12 @@ int main()
 	printf("\n========== New permission configurations ==========\n");
 	memset(buf, 0, sizeof(buf));
 	tisci_setup_header((struct tisci_msg_header *)buf, 0x9001, (1 << 1));
-	tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)buf, 66, 0, 3);
+	tisci_setup_fwl_get_req((struct tisci_fwl_get_req*)buf, FWL_ID, FWL_REGION, 3);
 	tisci_send_msg(buf, sizeof(struct tisci_fwl_get_req));
 	memset(buf, 0, sizeof(buf));
 	tisci_recv_msg(buf, sizeof(struct tisci_fwl));
 	fwl_get_resp = (struct tisci_fwl *)buf;
-	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %d %d %d, start_address: %x, end_address: %x\n",
+	printf("FWL ID: %d, Region: %d, n_permission_regs: %d\ncontrol: %d, permissions: %b %b %b, start_address: %x, end_address: %x\n",
 	       fwl_get_resp->fwl_id, fwl_get_resp->region, fwl_get_resp->n_permission_regs, fwl_get_resp->control, fwl_get_resp->permissions[0],
 	       fwl_get_resp->permissions[1], fwl_get_resp->permissions[2], fwl_get_resp->start_address, fwl_get_resp->end_address);
 
