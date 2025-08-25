@@ -414,9 +414,6 @@ int main(int argc, char **argv)
 		end_address = strtoul(argv[8], &end, 16);
 		
 		uint32_t perms[3];
-		//		for (int i = 0 ; i < 3; ++i) {
-		//	perms[i] = perm;//0xF0F0U & (0x1111U | 0x2222U | 0x3333U | 0x8888U); //(((uint32_t)195U << 16) | 0xFFFFU); //fwl_get_resp->permissions[i];
-		// }
 		perms[0] = ((0x1 << 16) | perm);
 		perms[1] = (100 << 16) | perm;
 		perms[2] = ((212 << 16) | perm);
@@ -478,6 +475,19 @@ int main(int argc, char **argv)
 		struct tisci_fwl_owner_resp *owner_resp = (struct tisci_fwl_owner_resp *)buf;
 		printf("Flag: %d, FWL ID: %d, Region: %d, Owner_index: %d\nOwner_privid: %d, Owner_permission_bits: %b\n", owner_resp->hdr.flags, owner_resp->fwl_id, owner_resp->region,
 		       owner_resp->owner_index, owner_resp->owner_privid, owner_resp->owner_permission_bits);
+	} else if (!strcmp(argv[1], "allowsafetycore")) {
+		if (argc < 3) {
+			printf("Insufficient arguments\n");
+			exit(1);
+		}
+		uint16_t msg_id = atoi(argv[2]) ? 0x902C : 0x902D;
+		printf("\n========== Allowing safety core ============\n");
+		memset(buf, 0, sizeof(buf));
+		tisci_setup_header((struct tisci_msg_header*)buf, msg_id, (1 << 1));
+		tisci_send_msg(buf, sizeof(struct tisci_msg_header));
+		memset(buf, 0, sizeof(buf));
+		tisci_recv_msg(buf, sizeof(struct tisci_msg_header));
+		printf("Flag: %d\n", ((struct tisci_msg_header*)buf)->flags);
 	} else {
 		printf("Incorrect command\n");
 		exit(1);
